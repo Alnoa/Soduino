@@ -1,15 +1,20 @@
-//   soduino 03/05/2014
-//http://www.alnoa.fr
+/*   Soduino 
 
+Made by Alnoa
+http://www.alnoa.fr
 
-#include <VirtualWire.h> // inclusion de la librairie VirtualWire
- int led1 = 8;
- int led2 = 7;
-const int inter = 6;
-const char *msg = "alex"; // clef 
-const int infra = 10;
+*/
+
+#include <VirtualWire.h> // initialisation de la librairie VirtualWire
+
+int led1 = 8;
+int led2 = 7;
+int inter = 6;
+int infra = 10;
 int etatinfra = 0;
 int etatsilence = 0;
+
+const char *msg = "alex"; // clef, /!\ Mettre la même dans le programme Rx /!\
 
 void setup() // Fonction setup()
 {  
@@ -18,13 +23,13 @@ void setup() // Fonction setup()
     pinMode(led1, OUTPUT);
     pinMode(led2, OUTPUT);
   
-  Serial.begin(9600);
+  Serial.begin(9600);// initialisation comunication du port série pour debug et voir le bon fonctionnement du code via le moniteur série de L'IDE ARDUINO
   Serial.println("Soduino bootup");
   
   vw_setup(1000);     // initialisation de la librairie VirtualWire à 1000 bauds 
   delay(2000);
   
-  //test envoi demarrage
+  //test: envoi de la clef au démarrage
   vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
   vw_wait_tx(); // On attend la fin de l'envoi
  
@@ -38,7 +43,7 @@ void loop()
   etatinfra = digitalRead(infra);
   etatsilence = digitalRead(inter);  
   
-  if(etatsilence == LOW)
+  if(etatsilence == LOW)// gère la led pour afficher l'état "silencieux" sur le boitier.
   {
     digitalWrite(led1,HIGH);
     Serial.println("mode silencieux");
@@ -49,28 +54,29 @@ void loop()
       Serial.println("mode normal");
       }
   
-    if(etatinfra == HIGH)
+    if(etatinfra == HIGH)// surveille l'état du capteur (ici un optocoupleur, similaire à un simple bouton avec pullup) et déclenche l'envoie de la clef 
     {
     digitalWrite(13,HIGH);
     tone(8, 900);
     delay(500);
     noTone(8);
   
-      if(etatsilence == HIGH) // on déclenche l'alarme du tx si le bouton du silencieux est activé
+      if(etatsilence == HIGH) // on déclenche l'alarme boitier du tx si le bouton du silencieux est activé
         {
           Serial.print("envoie ..");// on envoie plusieurs fois le message au cas ou la portée du signal doit étre grande et/ou affectée par les parasites.
-    vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-    vw_wait_tx(); // On attend la fin de l'envoi
-     vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-  vw_wait_tx();
-  vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-  vw_wait_tx();
-  vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-  vw_wait_tx();
-          alarme();
+            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
+            vw_wait_tx(); // On attend la fin de l'envoi
+            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
+            vw_wait_tx();
+            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
+            vw_wait_tx();
+            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
+            vw_wait_tx();
+          
+            alarme(); //voir void alarme()
         }
     Serial.println("réussi");
-    delay(10000);
+    delay(10000);//delais de 10sc pour ne pas flooder (innonder) les ondes , brouiller la fréquence, pour vos voisins !
     digitalWrite(13,LOW);
     }
 }
