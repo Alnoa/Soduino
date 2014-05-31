@@ -73,7 +73,7 @@ void loop()
             vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
             vw_wait_tx();
           
-            //alarme(); //voir void alarme()
+            alarme(); //voir void alarme()
         }
     Serial.println("réussi");
     delay(10000);//delais de 10sc pour ne pas flooder (innonder) les ondes , brouiller la fréquence, pour vos voisins !
