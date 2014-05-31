@@ -19,7 +19,7 @@ const char *msg = "alex"; // clef, /!\ Mettre la même dans le programme Rx /!\
 void setup() // Fonction setup()
 {  
     pinMode(infra, INPUT);
-    pinMode(inter, INPUT_PULLUP);
+    pinMode(inter, INPUT_PULLUP); //pullup,le pin de l'arduino est au +5V donc le bouton doit etre relié au pin et au GND
     pinMode(led1, OUTPUT);
     pinMode(led2, OUTPUT);
   
@@ -58,10 +58,10 @@ void loop()
     {
     digitalWrite(13,HIGH);
     tone(8, 900);
-    delay(500);
+    delay(400);
     noTone(8);
   
-      if(etatsilence == HIGH) // on déclenche l'alarme boitier du tx si le bouton du silencieux est activé
+      if(etatsilence == HIGH && etatinfra == HIGH) // on déclenche l'alarme boitier du tx si le bouton du silencieux est inactif
         {
           Serial.print("envoie ..");// on envoie plusieurs fois le message au cas ou la portée du signal doit étre grande et/ou affectée par les parasites.
             vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
@@ -73,7 +73,7 @@ void loop()
             vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
             vw_wait_tx();
           
-            alarme(); //voir void alarme()
+            //alarme(); //voir void alarme()
         }
     Serial.println("réussi");
     delay(10000);//delais de 10sc pour ne pas flooder (innonder) les ondes , brouiller la fréquence, pour vos voisins !
