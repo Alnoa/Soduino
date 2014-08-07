@@ -1,170 +1,132 @@
-/*   Soduino 
+﻿/* ___SODUINO TX_____
+  Partie émétteur
+  http://www.alnoa.fr
+  v2.0 06/08/2014
+  ___________________
+  */
 
-Made by Alnoa
-http://www.alnoa.fr
+#include <Bounce2.h>// librairie qui simplifie la prise en charge des bouttons 
+#include <VirtualWire.h>
 
-*/
 
-#include <VirtualWire.h> // initialisation de la librairie VirtualWire
-
-int led1 = 8;
-int led2 = 7;
-int inter = 6;
-int infra = 10;
+const char *clef = "alex";//CLEF transmise à Soduino RX, doit y être identique, sinon cela ne sonne pas
+int ledrouge = 8;
+int ledblanche = 7;
+int inter = 6;//BOUTON DE SELECTION DE MODE : NORMAL ou SILENCIEUX
 int etatinfra = 0;
 int etatsilence = 0;
+int ledinterne = 13;
+int BUTTON_PIN = 10;//BARRIERE INFRAROUGE
 
-const char *msg = "alex"; // clef, /!\ Mettre la même dans le programme Rx /!\
+// création de l'objet à debounce cf:librairie bounce2
+Bounce debouncer = Bounce(); 
 
-void setup() // Fonction setup()
-{  
-    pinMode(infra, INPUT);
-    pinMode(inter, INPUT_PULLUP); //pullup,le pin de l'arduino est au +5V donc le bouton doit etre relié au pin et au GND
-    pinMode(led1, OUTPUT);
-    pinMode(led2, OUTPUT);
-  
-  Serial.begin(9600);// initialisation comunication du port série pour debug et voir le bon fonctionnement du code via le moniteur série de L'IDE ARDUINO
-  Serial.println("Soduino bootup");
-  
-  vw_setup(1000);     // initialisation de la librairie VirtualWire à 1000 bauds 
-  delay(2000);
-  
-  //test: envoi de la clef au démarrage
-  vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-  vw_wait_tx(); // On attend la fin de l'envoi
+
+//_____________________INITIALISATION____________________________
+void setup() {
+  //initialisation de la liaison série
+  Serial.begin(9600);
+  //paramétrage des  boutons en mode pull up
+  pinMode(BUTTON_PIN,INPUT_PULLUP);
+  pinMode(inter, INPUT_PULLUP);
  
-  alarme();//on teste l'alarme
-  Serial.println("test fait");
+  //paramétrage du  debouncer cf:librairie bounce2
+  debouncer.attach(BUTTON_PIN);
+  debouncer.interval(350);
+  
+  //paramétrage des leds
+  pinMode(ledinterne,OUTPUT);
+  digitalWrite(ledinterne, HIGH );// mise à l'etat HAUT le temps de l'initialisation
+  pinMode(ledrouge, OUTPUT);
+  pinMode(ledblanche, OUTPUT);
+  
+  // Initialisation radio (pin12 data) et changement du pin ptt (pin 10 par défaut) car on l’utilise pour BUTTON_PIN
+  vw_set_ptt_pin(5);// /!/ CHANGEMENT DU ptt_pin vers le 5
+  vw_setup(1000);
   delay(2000);
+
+  //envoie de la clef pour tester la liaison au démarrage
+  vw_send((uint8_t *)clef, strlen(clef));
+  vw_wait_tx();// attente que l'envoie soit bien fini
+  
+  //activation de l'alarme pour vérification du bon fonctionnement
+  alarme();
+  
+  Serial.println("Test fait...");
+  // bip et extinction de la del13 annonçant la fin du setup
+  tone(9, 900, 250);
+  digitalWrite(ledinterne,LOW);
 }
+
+//______________________BOUCLE__________________________________
+void loop() {
+ //Mise à jour du debouncer, 
+ debouncer.update();
+//Lecture et affichage du mode (normal et silence)
+ etatsilence = digitalRead(inter);
+ digitalWrite(ledrouge, !etatsilence);
+ //Lecture du debouncer 
+ int value = debouncer.read();
  
-void loop() 
-{
-  etatinfra = digitalRead(infra);
-  etatsilence = digitalRead(inter);  
-  
-  if(etatsilence == LOW)// gère la led pour afficher l'état "silencieux" sur le boitier.
+ if (value == LOW)//si le barrière passe à l'état bas
   {
-    digitalWrite(led1,HIGH);
-    Serial.println("mode silencieux");
-    }
-    else
+    if (etatsilence == LOW)//si en mode silence
     {
-      digitalWrite(led1,LOW);
+      Serial.println("mode silence");
+      digitalWrite(ledblanche, HIGH);
+      tone(9,900,500);
+      delay(500);
+      noTone(9);
+      digitalWrite(ledblanche, LOW);
+    }
+    else//si en mode normal
+    {
       Serial.println("mode normal");
-      }
-  
-    if(etatinfra == HIGH)// surveille l'état du capteur (ici un optocoupleur, similaire à un simple bouton avec pullup) et déclenche l'envoie de la clef 
-    {
-    digitalWrite(13,HIGH);
-    tone(8, 900);
-    delay(400);
-    noTone(8);
-  
-      if(etatsilence == HIGH && etatinfra == HIGH) // on déclenche l'alarme boitier du tx si le bouton du silencieux est inactif
-        {
-          Serial.print("envoie ..");// on envoie plusieurs fois le message au cas ou la portée du signal doit étre grande et/ou affectée par les parasites.
-            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-            vw_wait_tx(); // On attend la fin de l'envoi
-            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-            vw_wait_tx();
-            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-            vw_wait_tx();
-            vw_send((uint8_t *)msg, strlen(msg)); // On envoie le message 
-            vw_wait_tx();
-          
-            alarme(); //voir void alarme()
-        }
-    Serial.println("réussi");
-    delay(10000);//delais de 10sc pour ne pas flooder (innonder) les ondes , brouiller la fréquence, pour vos voisins !
-    digitalWrite(13,LOW);
+      Serial.print("envoie ..");// On envoie plusieurs fois le message au cas où la portée du signal doit être grande et/ou affectée par les parasites.
+      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
+      vw_wait_tx(); // On attend la fin de l'envoi
+      Serial.print("1");
+      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
+      vw_wait_tx();
+      Serial.print(",2");
+      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
+      vw_wait_tx();
+      Serial.print(",3");
+      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
+      vw_wait_tx();
+      Serial.println(",4.");
+
+      alarme(); //voir void alarme()
+
+      Serial.println("réussi");
     }
+  }
 }
-void alarme() //sous programme qui traite le son et les lumiéres de l'alarme
+
+
+void alarme() //sous-programme qui traite le son et les lumières de l'alarme
 {
-  tone(9, 5000);
-  digitalWrite(led1,HIGH);
-  delay(250);
-  noTone(9);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(500);
-  noTone(9);  
-  digitalWrite(led1,HIGH);
-     digitalWrite(led2,LOW);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(250);
-  noTone(9);
-    digitalWrite(led2,LOW);
-      digitalWrite(led1,HIGH);
-  tone(9, 400);
-  delay(250);
-  noTone(9);
-    digitalWrite(led1,LOW);
-      digitalWrite(led2,HIGH);
-  tone(9, 5000);
-  delay(500);
-  noTone(9);
-    Serial.println("alarme");
-    digitalWrite(led1,LOW);
-digitalWrite(led2,LOW);
+  Serial.println("alarme !");
+    
+    for(int comt=0; comt<7; comt++)
+    {
+    digitalWrite(ledrouge, HIGH);
+    tone(9,5000);
+    delay(250);
+    digitalWrite(ledrouge, LOW);
+    digitalWrite(ledblanche, HIGH);
+    tone(9, 400);
+    delay(250);
+    digitalWrite(ledblanche, LOW);
+    noTone(9);
+    } 
+
+  debouncer.update();
+  digitalWrite(ledblanche, HIGH);
+  Serial.print("anti-flood...");
+  delay(10000);
+  Serial.println("ok");
+  debouncer.update();
+  digitalWrite(ledblanche, LOW);
 }
+// Merci d'avoir téléchargé ce programme sur http://www.alnoa.fr
