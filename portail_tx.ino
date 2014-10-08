@@ -1,4 +1,4 @@
-﻿/* ___SODUINO TX_____
+/* ___SODUINO TX_____
   Partie émétteur
   http://www.alnoa.fr
   v2.0 06/08/2014
@@ -9,7 +9,7 @@
 #include <VirtualWire.h>
 
 
-const char *clef = "alex";//CLEF transmise à Soduino RX, doit y être identique, sinon cela ne sonne pas
+const char *clef = "alex";//CLEF transmisdigitalWrite(pin, value);e à Soduino RX, doit y être identique, sinon cela ne sonne pas
 int ledrouge = 8;
 int ledblanche = 7;
 int inter = 6;//BOUTON DE SELECTION DE MODE : NORMAL ou SILENCIEUX
@@ -17,10 +17,10 @@ int etatinfra = 0;
 int etatsilence = 0;
 int ledinterne = 13;
 int BUTTON_PIN = 10;//BARRIERE INFRAROUGE
-
+int BTSORTIE = 4; //bouton retardant pour libre passage interieur >> exterieur 
 // création de l'objet à debounce cf:librairie bounce2
 Bounce debouncer = Bounce(); 
-
+Bounce debouncerST = Bounce();
 
 //_____________________INITIALISATION____________________________
 void setup() {
@@ -29,11 +29,12 @@ void setup() {
   //paramétrage des  boutons en mode pull up
   pinMode(BUTTON_PIN,INPUT_PULLUP);
   pinMode(inter, INPUT_PULLUP);
- 
+  pinMode(BTSORTIE, INPUT_PULLUP);
   //paramétrage du  debouncer cf:librairie bounce2
   debouncer.attach(BUTTON_PIN);
   debouncer.interval(350);
-  
+  debouncerST.attach(BTSORTIE);
+  debouncerST.interval(75);
   //paramétrage des leds
   pinMode(ledinterne,OUTPUT);
   digitalWrite(ledinterne, HIGH );// mise à l'etat HAUT le temps de l'initialisation
@@ -62,22 +63,31 @@ void setup() {
 void loop() {
  //Mise à jour du debouncer, 
  debouncer.update();
+ debouncerST.update();
 //Lecture et affichage du mode (normal et silence)
- etatsilence = digitalRead(inter);
- digitalWrite(ledrouge, !etatsilence);
+etatsilence = digitalRead(inter);
+digitalWrite(ledrouge, !etatsilence);
  //Lecture du debouncer 
  int value = debouncer.read();
- 
- if (value == LOW)//si le barrière passe à l'état bas
-  {
+
+ int retardant = debouncerST.read();
+ if (retardant == LOW)
+ {
+  retardateur();
+  retardant = HIGH;
+}
+
+if (value == LOW)//si la barrière passe à l'état bas
+{
     if (etatsilence == LOW)//si en mode silence
     {
       Serial.println("mode silence");
       digitalWrite(ledblanche, HIGH);
-      tone(9,900,500);
+      tone(9,900);
       delay(500);
       noTone(9);
       digitalWrite(ledblanche, LOW);
+      value = HIGH;
     }
     else//si en mode normal
     {
@@ -99,6 +109,7 @@ void loop() {
       alarme(); //voir void alarme()
 
       Serial.println("réussi");
+      value = HIGH;
     }
   }
 }
@@ -107,9 +118,9 @@ void loop() {
 void alarme() //sous-programme qui traite le son et les lumières de l'alarme
 {
   Serial.println("alarme !");
-    
-    for(int comt=0; comt<7; comt++)
-    {
+  
+  for(int comt=0; comt<7; comt++)
+  {
     digitalWrite(ledrouge, HIGH);
     tone(9,5000);
     delay(250);
@@ -119,14 +130,42 @@ void alarme() //sous-programme qui traite le son et les lumières de l'alarme
     delay(250);
     digitalWrite(ledblanche, LOW);
     noTone(9);
-    } 
+  } 
 
-  debouncer.update();
+  
   digitalWrite(ledblanche, HIGH);
   Serial.print("anti-flood...");
   delay(10000);
   Serial.println("ok");
-  debouncer.update();
+  
+  digitalWrite(ledblanche, LOW);
+}
+
+void retardateur()
+{
+  digitalWrite(ledblanche, HIGH);
+  tone(9, 500);
+  delay(750);
+  tone(9,4500);
+  delay(100);
+  noTone(9);
+  // boucle de retardateur de 3min
+  for(int e=0;e<180;e++)
+  {
+    digitalWrite(ledblanche,LOW);
+    delay(500);
+    digitalWrite(ledblanche,HIGH);
+    delay(500);
+    }
+  for(int z=0; z<4;z++)
+  { 
+    
+    tone(9, 3500);
+    delay(450);
+    noTone(9);
+    delay(250);
+    
+  }
   digitalWrite(ledblanche, LOW);
 }
 // Merci d'avoir téléchargé ce programme sur http://www.alnoa.fr
