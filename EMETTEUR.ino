@@ -1,7 +1,7 @@
 /* ___SODUINO TX_____
   Partie émétteur
   http://www.alnoa.fr
-  v2.0 06/08/2014
+  v2.1 08/10/2014
   ___________________
   */
 
@@ -9,7 +9,7 @@
 #include <VirtualWire.h>
 
 
-const char *clef = "alex";//CLEF transmisdigitalWrite(pin, value);e à Soduino RX, doit y être identique, sinon cela ne sonne pas
+const char *clef = "alex";//CLEF transmise à Soduino RX, doit y être identique, sinon cela ne sonne pas
 int ledrouge = 8;
 int ledblanche = 7;
 int inter = 6;//BOUTON DE SELECTION DE MODE : NORMAL ou SILENCIEUX
@@ -67,17 +67,13 @@ void loop() {
 //Lecture et affichage du mode (normal et silence)
 etatsilence = digitalRead(inter);
 digitalWrite(ledrouge, !etatsilence);
- //Lecture du debouncer 
- int value = debouncer.read();
 
- int retardant = debouncerST.read();
- if (retardant == LOW)
+ if ( debouncerST.fell() )
  {
   retardateur();
-  retardant = HIGH;
 }
 
-if (value == LOW)//si la barrière passe à l'état bas
+if ( debouncer.fell() )//si la barrière passe à l'état bas
 {
     if (etatsilence == LOW)//si en mode silence
     {
@@ -87,29 +83,20 @@ if (value == LOW)//si la barrière passe à l'état bas
       delay(500);
       noTone(9);
       digitalWrite(ledblanche, LOW);
-      value = HIGH;
     }
     else//si en mode normal
     {
       Serial.println("mode normal");
       Serial.print("envoie ..");// On envoie plusieurs fois le message au cas où la portée du signal doit être grande et/ou affectée par les parasites.
-      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
-      vw_wait_tx(); // On attend la fin de l'envoi
-      Serial.print("1");
-      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
-      vw_wait_tx();
-      Serial.print(",2");
-      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
-      vw_wait_tx();
-      Serial.print(",3");
-      vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
-      vw_wait_tx();
-      Serial.println(",4.");
+     for(int i=0; i<4; i++){
+          vw_send((uint8_t *)clef, strlen(clef)); // On envoie le message
+          vw_wait_tx(); // On attend la fin de l'envoi
+          Serial.print(i);
+      } 
 
       alarme(); //voir void alarme()
 
       Serial.println("réussi");
-      value = HIGH;
     }
   }
 }
