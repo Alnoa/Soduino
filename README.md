@@ -2,7 +2,5 @@ Soduino
 =======
 
 
-Evolutive wireless arduino alarm
+Evolutive wireless arduino DOOR BELL
 
-FRENCH:
-Pour les infos ; http://www.alnoa.fr/2014/05/sonnerie-portail-arduino-sans-fil/
